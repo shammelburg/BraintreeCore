@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Braintree Example App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+</head>
+<body>
+    <div class="container">
+        <div class="row mt-5">
+            <div class="col-3"></div>
+            <div class="col-6">
+                <div class="card">
+                    <div class="card-header">Braintree Example</div>
+                    <div class="card-body">
+                        <form id="checkout-form">
+                            <div class="form-group">
+                                <label for="amount">Amount</label>
+                                <input type="number" class="form-control" id="amount" placeholder="Amount">
+                            </div>
+                            <div id="dropin-container"></div>
+                            <button id="submit-button" class="btn btn-primary">Request payment method</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://js.braintreegateway.com/web/dropin/1.14.0/js/dropin.min.js"></script>
+    <script>
+        // Global variables
+        var button = document.querySelector('#submit-button');
+        var amount = document.getElementById('amount');
+
+        // IIFE
+        (function () {
+            // get token
+            $.get('api/values/token', function (data, statusText, jqXHR) {
+                console.log(jqXHR)
+                if (jqXHR.readyState == 4 && jqXHR.status == 200) {
+                    loadDropIn(data);
+                }
+            });
+        }());
+
+        function loadDropIn(token) {
+            braintree.dropin.create({
+                authorization: token,
+                container: '#dropin-container',
+                //form:'#checkout-form',
+                paypal: {
+                    flow: 'vault',
+                    amount: amount.value,
+                    currency: 'GBP'
+                }
+            }, function (createErr, instance) {
+                button.addEventListener('click', function () {
+                    instance.requestPaymentMethod(function (err, payload) {
+                        // Submit payload.nonce to your server
+                        var model = {
+                            amount: amount.value,
+                            payment_method_nonce: payload.nonce,
+                        };
+                        postNonce(model);
+                    });
+                });
+            });
+        }
+
+        function postNonce(model) {
+            var fd = new FormData();
+            fd.append("amount", model.amount);
+            fd.append("payment_method_nonce", model.payment_method_nonce)
+
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.status == 200) {
+                    console.log('200', this.responseText);
+                } else if (this.status == 400) {
+                    console.log('400', this.responseText);
+                }
+
+                amount.value = '';
+            };
+            xhttp.open("POST", "api/values/create", true);
+            xhttp.send(fd);
+        }
+
+    </script>
+</body>
+</html>
